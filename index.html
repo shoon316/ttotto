@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>또또 English</title>
+    <style>
+        :root { --primary-color: #ff7675; --secondary-color: #fab1a0; --bg-color: #fff9f9; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg-color); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; width: 100%; max-width: 500px; padding: 30px; border-radius: 24px; box-shadow: 0 15px 35px rgba(255,118,117,0.1); text-align: center; }
+        h1 { color: var(--primary-color); margin: 0 0 5px; font-size: 32px; }
+        .subtitle { color: #888; margin-bottom: 20px; font-size: 14px; }
+        
+        .preset-box { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 15px; }
+        .btn-preset { background: #fff; border: 2px solid var(--secondary-color); color: var(--primary-color); padding: 8px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-preset:hover { background: var(--secondary-color); color: white; }
+
+        textarea { 
+            width: 100%; min-height: 100px; height: auto; padding: 15px; border: 2px solid #ffeaa7; 
+            border-radius: 12px; font-size: 18px; box-sizing: border-box; margin-bottom: 10px; 
+            resize: none; font-family: inherit; line-height: 1.6; overflow: hidden; outline: none;
+        }
+
+        #translation-display {
+            background: #f0f7ff; color: #4a90e2; padding: 12px; border-radius: 12px;
+            font-size: 16px; margin-bottom: 15px; display: none; border-left: 5px solid #4a90e2; text-align: left;
+        }
+
+        .btn-translate {
+            background: #f1f2f6; color: #555; padding: 6px 16px; border-radius: 15px;
+            font-size: 12px; cursor: pointer; border: 1px solid #ddd; margin-bottom: 15px; display: none;
+        }
+        
+        .controls { display: flex; justify-content: space-around; background: #fff5f5; padding: 12px; border-radius: 12px; margin-bottom: 20px; font-size: 13px; }
+        .control-item { display: flex; flex-direction: column; gap: 5px; }
+
+        .btn-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        button { padding: 15px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px; color: white; }
+        .btn-listen { background: var(--secondary-color); }
+        .btn-speak { background: var(--primary-color); }
+
+        #comparison-display { margin: 20px 0; font-size: 20px; line-height: 1.6; min-height: 35px; text-align: left; background: #fafafa; padding: 15px; border-radius: 10px; }
+        .correct { color: #2ecc71; }
+        .wrong { color: #e74c3c; text-decoration: underline; cursor: pointer; font-weight: bold; }
+
+        .score-badge { font-size: 42px; color: var(--primary-color); font-weight: 800; margin-bottom: 10px; }
+        
+        .history-item { background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; display: flex; justify-content: space-between; cursor: pointer; }
+        #status-msg { font-size: 12px; color: #fab1a0; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🍎 또또 English</h1>
+    <p class="subtitle">최적화된 발음 학습기</p>
+    <div id="status-msg">데이터 로딩 중...</div>
+
+    <div class="preset-box">
+        <button class="btn-preset" onclick="setPreset('daily')">🏠 일상</button>
+        <button class="btn-preset" onclick="setPreset('travel')">✈️ 여행</button>
+        <button class="btn-preset" onclick="setPreset('golf')">⛳ 골프</button>
+        <button class="btn-preset" onclick="setPreset('church')">⛪ 교회</button>
+        <button class="btn-preset" onclick="setPreset('random')">🎲 랜덤</button>
+    </div>
+
+    <textarea id="textInput" placeholder="문장을 선택해 주세요" onfocus="preventStop(event)" oninput="autoResize()"></textarea>
+    
+    <div id="translation-display"></div>
+    <div class="btn-translate" id="swapBtn" onclick="toggleTranslation()">🔍 번역 보기</div>
+
+    <div class="controls">
+        <div class="control-item"> 목소리 <select id="voiceSelect"></select></div>
+        <div class="control-item"> 속도: <span id="speedVal">1.0</span> <input type="range" id="speedRange" min="0.5" max="1.5" step="0.1" value="1.0"></div>
+    </div>
+    
+    <div class="btn-box">
+        <button class="btn-listen" onclick="playSpeech(document.getElementById('textInput').value)">🎧 전체 듣기</button>
+        <button class="btn-speak" onclick="startRecognition()">🎤 발음하기</button>
+    </div>
+
+    <div id="result-box">
+        <div id="comparison-display"></div>
+        <div id="scoreArea" style="display:none;"><div class="score-badge" id="scoreValue">0%</div></div>
+    </div>
+
+    <div style="text-align: left; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+        <div style="font-weight: bold; font-size: 14px; margin-bottom: 10px;">🕒 최근 학습</div>
+        <div id="historyList"></div>
+    </div>
+</div>
+
+<script>
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTd4zYF3VWpo3UGriP6LJXXekWTZMHYa7ZLkKSDwe0gg87UXiJ5qZMQlCdCgPwTwhDCXLZ9m6mW7Qci/pub?gid=1367477544&single=true&output=csv"; 
+    let presets = { daily: [], travel: [], golf: [], church: [] };
+    let currentKor = ""; 
+    const textInput = document.getElementById('textInput');
+
+    function autoResize() {
+        textInput.style.height = 'auto';
+        textInput.style.height = textInput.scrollHeight + 'px';
+    }
+
+    function preventStop(e) { if (window.speechSynthesis.speaking) { e.preventDefault(); textInput.blur(); } }
+
+    async function loadOnlineData() {
+        try {
+            const res = await fetch(SHEET_URL);
+            const csv = await res.text();
+            csv.split(/\r?\n/).forEach(row => {
+                const col = row.split(',');
+                if (col.length >= 2 && presets[col[0].trim().toLowerCase()]) {
+                    presets[col[0].trim().toLowerCase()].push({ eng: col[1].trim(), kor: col[2]?.trim() || "" });
+                }
+            });
+            document.getElementById('status-msg').innerText = "✅ 준비 완료";
+        } catch (e) { document.getElementById('status-msg').innerText = "❌ 데이터 로드 실패"; }
+    }
+
+    function setPreset(cat) {
+        const keys = Object.keys(presets).filter(k => presets[k].length > 0);
+        const list = cat === 'random' ? presets[keys[Math.floor(Math.random()*keys.length)]] : presets[cat];
+        if (!list?.length) return;
+        
+        const item = list[Math.floor(Math.random()*list.length)];
+        textInput.value = item.eng;
+        currentKor = item.kor;
+        
+        autoResize();
+        document.getElementById('translation-display').style.display = "none";
+        document.getElementById('translation-display').innerText = currentKor;
+        document.getElementById('swapBtn').style.display = "inline-block";
+        document.getElementById('swapBtn').innerText = "🔍 번역 보기";
+        clearResult();
+    }
+
+    function toggleTranslation() {
+        const div = document.getElementById('translation-display');
+        const open = div.style.display === "block";
+        div.style.display = open ? "none" : "block";
+        document.getElementById('swapBtn').innerText = open ? "🔍 번역 보기" : "🙈 번역 닫기";
+    }
+
+    function playSpeech(txt) {
+        if(!txt) return;
+        window.speechSynthesis.cancel();
+        setTimeout(() => {
+            const m = new SpeechSynthesisUtterance(txt);
+            m.voice = window.speechSynthesis.getVoices().find(v => v.name === document.getElementById('voiceSelect').value);
+            m.rate = document.getElementById('speedRange').value;
+            window.speechSynthesis.speak(m);
+        }, 50);
+    }
+
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'en-US';
+
+    function startRecognition() { 
+        if(!textInput.value) return;
+        document.getElementById('comparison-display').innerText = "듣고 있습니다..."; 
+        recognition.start(); 
+    }
+
+    recognition.onresult = (e) => {
+        const reco = e.results[0][0].transcript.toLowerCase().replace(/[.,!?]/g,"");
+        const orig = textInput.value.trim().split(/\s+/);
+        const recoWords = reco.split(/\s+/);
+        const display = document.getElementById('comparison-display');
+        display.innerHTML = "";
+        let matches = 0;
+
+        orig.forEach(word => {
+            const clean = word.toLowerCase().replace(/[.,!?]/g,"");
+            const span = document.createElement('span');
+            span.innerText = word + " ";
+            if (recoWords.includes(clean)) { span.className = "correct"; matches++; }
+            else { 
+                span.className = "wrong"; 
+                span.onclick = (ev) => { ev.stopPropagation(); playSpeech(clean); };
+            }
+            display.appendChild(span);
+        });
+
+        const score = Math.round((matches / orig.length) * 100);
+        document.getElementById('scoreArea').style.display = "block";
+        document.getElementById('scoreValue').innerText = score + "%";
+        saveHistory(textInput.value, score);
+    };
+
+    function saveHistory(sentence, score) {
+        let h = JSON.parse(localStorage.getItem('todoH') || '[]');
+        h = h.filter(i => i.sentence !== sentence).slice(0, 6);
+        h.unshift({ sentence, score });
+        localStorage.setItem('todoH', JSON.stringify(h));
+        updateHistoryDisplay();
+    }
+
+    function updateHistoryDisplay() {
+        const list = document.getElementById('historyList');
+        const h = JSON.parse(localStorage.getItem('todoH') || '[]');
+        list.innerHTML = h.map(i => `<div class="history-item" onclick="loadH('${i.sentence.replace(/'/g, "\\'")}')"><span>${i.sentence}</span><b>${i.score}%</b></div>`).join('');
+    }
+
+    function loadH(s) { textInput.value = s; autoResize(); clearResult(); }
+    function clearResult() { document.getElementById('comparison-display').innerHTML = ""; document.getElementById('scoreArea').style.display = "none"; }
+
+    function initVoices() {
+        const vs = document.getElementById('voiceSelect');
+        const vcs = window.speechSynthesis.getVoices().filter(v => v.lang.includes('en'));
+        if (!vcs.length || vs.options.length > 0) return;
+        vcs.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v.name; opt.innerText = v.name.split(' ')[0]; vs.appendChild(opt);
+        });
+    }
+
+    window.speechSynthesis.onvoiceschanged = initVoices;
+    window.onload = () => { loadOnlineData(); initVoices(); updateHistoryDisplay(); autoResize(); };
+    document.getElementById('speedRange').oninput = (e) => document.getElementById('speedVal').innerText = e.target.value;
+</script>
+</body>
+</html>
