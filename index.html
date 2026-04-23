@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>또또 English</title>
+    <title>또또 English - 최종 최적화 버전</title>
     <style>
         :root { --primary-color: #ff7675; --secondary-color: #fab1a0; --bg-color: #fff9f9; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg-color); margin: 0; padding: 20px; display: flex; justify-content: center; }
@@ -31,8 +31,9 @@
             font-size: 12px; cursor: pointer; border: 1px solid #ddd; margin-bottom: 15px; display: none;
         }
         
-        .controls { display: flex; justify-content: space-around; background: #fff5f5; padding: 12px; border-radius: 12px; margin-bottom: 20px; font-size: 13px; }
-        .control-item { display: flex; flex-direction: column; gap: 5px; }
+        .controls { display: flex; justify-content: space-around; background: #fff5f5; padding: 12px; border-radius: 12px; margin-bottom: 20px; font-size: 13px; gap: 10px; }
+        .control-item { display: flex; flex-direction: column; gap: 5px; flex: 1; text-align: left; }
+        select { padding: 6px; border-radius: 8px; border: 1px solid #ddd; font-size: 12px; background: white; outline: none; }
 
         .btn-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
         button { padding: 15px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px; color: white; }
@@ -53,8 +54,8 @@
 
 <div class="container">
     <h1>🍎 또또 English</h1>
-    <p class="subtitle">최적화된 발음 학습기</p>
-    <div id="status-msg">데이터 로딩 중...</div>
+    <p class="subtitle">미국/영국 정통 발음 학습</p>
+    <div id="status-msg">데이터 로드 중...</div>
 
     <div class="preset-box">
         <button class="btn-preset" onclick="setPreset('daily')">🏠 일상</button>
@@ -113,8 +114,8 @@
                     presets[col[0].trim().toLowerCase()].push({ eng: col[1].trim(), kor: col[2]?.trim() || "" });
                 }
             });
-            document.getElementById('status-msg').innerText = "✅ 준비 완료";
-        } catch (e) { document.getElementById('status-msg').innerText = "❌ 데이터 로드 실패"; }
+            document.getElementById('status-msg').innerText = "✅ 데이터 연동 성공";
+        } catch (e) { document.getElementById('status-msg').innerText = "❌ 로드 실패"; }
     }
 
     function setPreset(cat) {
@@ -146,7 +147,9 @@
         window.speechSynthesis.cancel();
         setTimeout(() => {
             const m = new SpeechSynthesisUtterance(txt);
-            m.voice = window.speechSynthesis.getVoices().find(v => v.name === document.getElementById('voiceSelect').value);
+            const voices = window.speechSynthesis.getVoices();
+            const selectedVoice = voices.find(v => v.name === document.getElementById('voiceSelect').value);
+            if(selectedVoice) m.voice = selectedVoice;
             m.rate = document.getElementById('speedRange').value;
             window.speechSynthesis.speak(m);
         }, 50);
@@ -188,34 +191,64 @@
     };
 
     function saveHistory(sentence, score) {
-        let h = JSON.parse(localStorage.getItem('todoH') || '[]');
+        let h = JSON.parse(localStorage.getItem('todoH_new') || '[]');
         h = h.filter(i => i.sentence !== sentence).slice(0, 6);
         h.unshift({ sentence, score });
-        localStorage.setItem('todoH', JSON.stringify(h));
+        localStorage.setItem('todoH_new', JSON.stringify(h));
         updateHistoryDisplay();
     }
 
     function updateHistoryDisplay() {
         const list = document.getElementById('historyList');
-        const h = JSON.parse(localStorage.getItem('todoH') || '[]');
+        const h = JSON.parse(localStorage.getItem('todoH_new') || '[]');
         list.innerHTML = h.map(i => `<div class="history-item" onclick="loadH('${i.sentence.replace(/'/g, "\\'")}')"><span>${i.sentence}</span><b>${i.score}%</b></div>`).join('');
     }
 
     function loadH(s) { textInput.value = s; autoResize(); clearResult(); }
     function clearResult() { document.getElementById('comparison-display').innerHTML = ""; document.getElementById('scoreArea').style.display = "none"; }
 
+    // 목소리 로드 및 한국어 차단 최적화 함수
     function initVoices() {
         const vs = document.getElementById('voiceSelect');
-        const vcs = window.speechSynthesis.getVoices().filter(v => v.lang.includes('en'));
-        if (!vcs.length || vs.options.length > 0) return;
-        vcs.forEach(v => {
+        const allVoices = window.speechSynthesis.getVoices();
+        
+        // 영어(en)만 필터링 (한국어 ko 완벽 차단)
+        const enVoices = allVoices.filter(v => v.lang.startsWith('en'));
+        
+        if (enVoices.length === 0 || vs.options.length > 0) return;
+
+        enVoices.forEach(v => {
             const opt = document.createElement('option');
-            opt.value = v.name; opt.innerText = v.name.split(' ')[0]; vs.appendChild(opt);
+            opt.value = v.name;
+            
+            // 제조사 이름 삭제 및 가독성 향상
+            let displayName = v.name.replace(/Microsoft |Google |Apple |Samsung /g, "");
+            
+            // 지역 코드 추출 (US, UK 등)
+            const region = v.lang.split('-')[1] ? ` (${v.lang.split('-')[1].toUpperCase()})` : "";
+            opt.innerText = displayName + region;
+            vs.appendChild(opt);
         });
+
+        // 기본값: 미국 영어(US) 우선 설정
+        const defaultVoice = [...vs.options].find(o => o.text.includes('US')) || vs.options[0];
+        if (defaultVoice) vs.value = defaultVoice.value;
     }
 
-    window.speechSynthesis.onvoiceschanged = initVoices;
-    window.onload = () => { loadOnlineData(); initVoices(); updateHistoryDisplay(); autoResize(); };
+    // 브라우저 호환성 대응 (Voice 로딩)
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = initVoices;
+    }
+
+    window.onload = () => { 
+        loadOnlineData(); 
+        initVoices(); 
+        updateHistoryDisplay(); 
+        autoResize(); 
+        // 모바일 및 특정 브라우저 지연 로드 대응
+        setTimeout(initVoices, 600);
+    };
+    
     document.getElementById('speedRange').oninput = (e) => document.getElementById('speedVal').innerText = e.target.value;
 </script>
 </body>
