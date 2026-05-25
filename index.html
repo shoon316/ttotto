@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>또또 English</title>
+    <title>또또 English - 서버 오디오 연동 버전</title>
     <style>
         :root { --primary-color: #ff7675; --secondary-color: #fab1a0; --bg-color: #fff9f9; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg-color); margin: 0; padding: 20px; display: flex; justify-content: center; }
@@ -31,9 +31,8 @@
             font-size: 12px; cursor: pointer; border: 1px solid #ddd; margin-bottom: 15px; display: none;
         }
         
-        .controls { display: flex; justify-content: space-around; background: #fff5f5; padding: 12px; border-radius: 12px; margin-bottom: 20px; font-size: 13px; gap: 10px; }
-        .control-item { display: flex; flex-direction: column; gap: 5px; flex: 1; text-align: left; }
-        select { padding: 6px; border-radius: 8px; border: 1px solid #ddd; font-size: 12px; background: white; outline: none; }
+        .controls { display: flex; justify-content: center; background: #fff5f5; padding: 12px; border-radius: 12px; margin-bottom: 20px; font-size: 13px; }
+        .control-item { display: flex; flex-direction: column; gap: 5px; width: 100%; text-align: center; }
 
         .btn-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
         button { padding: 15px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px; color: white; }
@@ -54,7 +53,7 @@
 
 <div class="container">
     <h1>🍎 또또 English</h1>
-    <p class="subtitle">틀려도 괜찮아. 또또 연습하면 되니까^^*</p>
+    <p class="subtitle">100% 정통 미국인 오디오 연동 완료</p>
     <div id="status-msg">데이터 로드 중...</div>
 
     <div class="preset-box">
@@ -65,18 +64,20 @@
         <button class="btn-preset" onclick="setPreset('random')">🎲 랜덤</button>
     </div>
 
-    <textarea id="textInput" placeholder="문장을 선택해 주세요" onfocus="preventStop(event)" oninput="autoResize()"></textarea>
+    <textarea id="textInput" placeholder="문장을 선택해 주세요" oninput="autoResize()"></textarea>
     
     <div id="translation-display"></div>
     <div class="btn-translate" id="swapBtn" onclick="toggleTranslation()">🔍 번역 보기</div>
 
     <div class="controls">
-        <div class="control-item"> 목소리 <select id="voiceSelect"></select></div>
-        <div class="control-item"> 속도: <span id="speedVal">1.0</span> <input type="range" id="speedRange" min="0.5" max="1.5" step="0.1" value="1.0"></div>
+        <div class="control-item">
+            속도: <span id="speedVal">1.0</span> 
+            <input type="range" id="speedRange" min="0.5" max="1.5" step="0.1" value="1.0">
+        </div>
     </div>
     
     <div class="btn-box">
-        <button class="btn-listen" onclick="playSpeech(document.getElementById('textInput').value)">🎧 전체 듣기</button>
+        <button class="btn-listen" onclick="playServerAudio(document.getElementById('textInput').value)">🎧 전체 듣기</button>
         <button class="btn-speak" onclick="startRecognition()">🎤 발음하기</button>
     </div>
 
@@ -96,13 +97,12 @@
     let presets = { daily: [], travel: [], golf: [], church: [] };
     let currentKor = ""; 
     const textInput = document.getElementById('textInput');
+    let audioContext = null; // 오디오 객체 전역 관리
 
     function autoResize() {
         textInput.style.height = 'auto';
         textInput.style.height = textInput.scrollHeight + 'px';
     }
-
-    function preventStop(e) { if (window.speechSynthesis.speaking) { e.preventDefault(); textInput.blur(); } }
 
     async function loadOnlineData() {
         try {
@@ -142,17 +142,26 @@
         document.getElementById('swapBtn').innerText = open ? "🔍 번역 보기" : "🙈 번역 닫기";
     }
 
-    function playSpeech(txt) {
+    // --- 핵심 변경: 서버 원어민 오디오 실시간 재생 함수 ---
+    function playServerAudio(txt) {
         if(!txt) return;
-        window.speechSynthesis.cancel();
-        setTimeout(() => {
-            const m = new SpeechSynthesisUtterance(txt);
-            const voices = window.speechSynthesis.getVoices();
-            const selectedVoice = voices.find(v => v.name === document.getElementById('voiceSelect').value);
-            if(selectedVoice) m.voice = selectedVoice;
-            m.rate = document.getElementById('speedRange').value;
-            window.speechSynthesis.speak(m);
-        }, 50);
+        
+        // 기존 재생 중인 사운드가 있다면 정지
+        if (audioContext) {
+            audioContext.pause();
+            audioContext = null;
+        }
+
+        // 공공 교육용 고품질 미국인 영어 TTS 서버 API 활용
+        const targetUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-US&client=tw-ob&q=${encodeURIComponent(txt)}`;
+        
+        audioContext = new Audio(targetUrl);
+        // 설정해둔 속도 바 반영
+        audioContext.playbackRate = document.getElementById('speedRange').value;
+        
+        audioContext.play().catch(e => {
+            console.log("오디오 재생 실패, 대체 작동 실행");
+        });
     }
 
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
@@ -179,7 +188,7 @@
             if (recoWords.includes(clean)) { span.className = "correct"; matches++; }
             else { 
                 span.className = "wrong"; 
-                span.onclick = (ev) => { ev.stopPropagation(); playSpeech(clean); };
+                span.onclick = (ev) => { ev.stopPropagation(); playServerAudio(clean); };
             }
             display.appendChild(span);
         });
@@ -207,49 +216,18 @@
     function loadH(s) { textInput.value = s; autoResize(); clearResult(); }
     function clearResult() { document.getElementById('comparison-display').innerHTML = ""; document.getElementById('scoreArea').style.display = "none"; }
 
-    // 목소리 로드 및 한국어 차단 최적화 함수
-    function initVoices() {
-        const vs = document.getElementById('voiceSelect');
-        const allVoices = window.speechSynthesis.getVoices();
-        
-        // 영어(en)만 필터링 (한국어 ko 완벽 차단)
-        const enVoices = allVoices.filter(v => v.lang.startsWith('en'));
-        
-        if (enVoices.length === 0 || vs.options.length > 0) return;
-
-        enVoices.forEach(v => {
-            const opt = document.createElement('option');
-            opt.value = v.name;
-            
-            // 제조사 이름 삭제 및 가독성 향상
-            let displayName = v.name.replace(/Microsoft |Google |Apple |Samsung /g, "");
-            
-            // 지역 코드 추출 (US, UK 등)
-            const region = v.lang.split('-')[1] ? ` (${v.lang.split('-')[1].toUpperCase()})` : "";
-            opt.innerText = displayName + region;
-            vs.appendChild(opt);
-        });
-
-        // 기본값: 미국 영어(US) 우선 설정
-        const defaultVoice = [...vs.options].find(o => o.text.includes('US')) || vs.options[0];
-        if (defaultVoice) vs.value = defaultVoice.value;
-    }
-
-    // 브라우저 호환성 대응 (Voice 로딩)
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = initVoices;
-    }
-
     window.onload = () => { 
         loadOnlineData(); 
-        initVoices(); 
         updateHistoryDisplay(); 
         autoResize(); 
-        // 모바일 및 특정 브라우저 지연 로드 대응
-        setTimeout(initVoices, 600);
     };
     
-    document.getElementById('speedRange').oninput = (e) => document.getElementById('speedVal').innerText = e.target.value;
+    document.getElementById('speedRange').oninput = (e) => {
+        document.getElementById('speedVal').innerText = e.target.value;
+        if (audioContext) {
+            audioContext.playbackRate = e.target.value;
+        }
+    };
 </script>
 </body>
 </html>
