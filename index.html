@@ -48,6 +48,40 @@
         .wrong { color: #e74c3c; text-decoration: underline; cursor: pointer; font-weight: bold; }
 
         .score-badge { font-size: 42px; color: var(--primary-color); font-weight: 800; margin-bottom: 10px; }
+        .celebration {
+            position: fixed; inset: 0; display: none; place-items: center; z-index: 20;
+            background: rgba(255, 249, 249, 0.72); backdrop-filter: blur(2px);
+        }
+        .celebration.show { display: grid; animation: fadeIn 0.2s ease-out; }
+        .celebration-card {
+            position: relative; width: min(82vw, 330px); padding: 28px 18px; border-radius: 18px;
+            background: white; box-shadow: 0 18px 50px rgba(255,118,117,0.28);
+            color: var(--primary-color); font-size: 30px; font-weight: 900; text-align: center;
+            transform-origin: center; animation: popCelebrate 0.7s cubic-bezier(.2,1.45,.35,1);
+        }
+        .celebration-card span { display: block; margin-top: 8px; color: #555; font-size: 15px; font-weight: 700; }
+        .sparkle {
+            position: absolute; width: 12px; height: 12px; border-radius: 50%;
+            background: var(--secondary-color); animation: sparkleFly 0.95s ease-out forwards;
+        }
+        .sparkle:nth-child(1) { left: 16%; top: 18%; background: #ffeaa7; animation-delay: .05s; }
+        .sparkle:nth-child(2) { right: 14%; top: 20%; background: #74b9ff; animation-delay: .1s; }
+        .sparkle:nth-child(3) { left: 20%; bottom: 18%; background: #55efc4; animation-delay: .14s; }
+        .sparkle:nth-child(4) { right: 19%; bottom: 16%; background: #fd79a8; animation-delay: .18s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popCelebrate {
+            0% { transform: scale(.72); opacity: 0; }
+            60% { transform: scale(1.08); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes sparkleFly {
+            0% { transform: scale(.5); opacity: 0; }
+            30% { opacity: 1; }
+            100% { transform: translateY(-34px) scale(1.4); opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .celebration.show, .celebration-card, .sparkle { animation: none; }
+        }
         
         .history-item { background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; display: flex; justify-content: space-between; cursor: pointer; }
         #status-msg { font-size: 12px; color: #fab1a0; margin-bottom: 10px; }
@@ -78,7 +112,7 @@
     </div>
     
     <div class="btn-box">
-        <button class="btn-listen" onclick="playSpeech(document.getElementById('textInput').value)">🎧 전체듣기</button>
+        <button class="btn-listen" onclick="playSpeech(document.getElementById('textInput').value)">🎧 전체 듣기</button>
         <button class="btn-speak" onclick="startRecognition()">🎤 발음하기</button>
     </div>
 
@@ -88,8 +122,16 @@
     </div>
 
     <div style="text-align: left; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-        <div style="font-weight: bold; font-size: 14px; margin-bottom: 10px;">🕒 최근학습</div>
+        <div style="font-weight: bold; font-size: 14px; margin-bottom: 10px;">🕒 최근 학습</div>
         <div id="historyList"></div>
+    </div>
+</div>
+
+<div class="celebration" id="celebration">
+    <div class="celebration-card">
+        <div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div>
+        완벽해요!
+        <span>100점 축하해요</span>
     </div>
 </div>
 
@@ -97,6 +139,7 @@
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTd4zYF3VWpo3UGriP6LJXXekWTZMHYa7ZLkKSDwe0gg87UXiJ5qZMQlCdCgPwTwhDCXLZ9m6mW7Qci/pub?gid=1367477544&single=true&output=csv"; 
     let presets = { daily: [], travel: [], golf: [], church: [] };
     let currentKor = ""; 
+    let celebrationTimer = null;
     const textInput = document.getElementById('textInput');
 
     function autoResize() {
@@ -141,7 +184,7 @@
         const div = document.getElementById('translation-display');
         const open = div.style.display === "block";
         div.style.display = open ? "none" : "block";
-        document.getElementById('swapBtn').innerText = open ? "🔍 번역보기" : "🙈 번역닫기";
+        document.getElementById('swapBtn').innerText = open ? "🔍 번역 보기" : "🙈 번역 닫기";
     }
 
     function playSpeech(txt) {
@@ -166,6 +209,7 @@
 
     function startRecognition() { 
         if(!textInput.value) return;
+        hideCelebration();
         document.getElementById('comparison-display').innerText = "듣고 있습니다..."; 
         recognition.start(); 
     }
@@ -193,8 +237,22 @@
         const score = Math.round((matches / orig.length) * 100);
         document.getElementById('scoreArea').style.display = "block";
         document.getElementById('scoreValue').innerText = score + "%";
+        if (score === 100) showCelebration();
         saveHistory(textInput.value, score);
     };
+
+    function showCelebration() {
+        const celebration = document.getElementById('celebration');
+        celebration.classList.add('show');
+        clearTimeout(celebrationTimer);
+        celebrationTimer = setTimeout(hideCelebration, 2200);
+    }
+
+    function hideCelebration() {
+        const celebration = document.getElementById('celebration');
+        celebration.classList.remove('show');
+        clearTimeout(celebrationTimer);
+    }
 
     function saveHistory(sentence, score) {
         let h = JSON.parse(localStorage.getItem('todoH_new') || '[]');
@@ -211,7 +269,7 @@
     }
 
     function loadH(s) { textInput.value = s; autoResize(); clearResult(); }
-    function clearResult() { document.getElementById('comparison-display').innerHTML = ""; document.getElementById('scoreArea').style.display = "none"; }
+    function clearResult() { document.getElementById('comparison-display').innerHTML = ""; document.getElementById('scoreArea').style.display = "none"; hideCelebration(); }
 
     const TRUSTED_ENGLISH_REGIONS = ['US', 'GB', 'AU', 'CA', 'IE', 'NZ', 'ZA'];
     const ENGLISH_VOICE_PRIORITY = ['Google US English', 'Microsoft Jenny', 'Microsoft Aria', 'Samantha', 'Karen', 'Daniel', 'Google UK English'];
