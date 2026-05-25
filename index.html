@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>또또 English - 서버 오디오 최종 안정화 버전</title>
+    <title>또또 English</title>
     <style>
         :root { --primary-color: #ff7675; --secondary-color: #fab1a0; --bg-color: #fff9f9; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg-color); margin: 0; padding: 20px; display: flex; justify-content: center; }
@@ -53,7 +53,7 @@
 
 <div class="container">
     <h1>🍎 또또 English</h1>
-    <p class="subtitle">100% 정통 미국인 고정 오디오 버전</p>
+    <p class="subtitle">틀려도 괜찮아^^ 다시 하면 되니까~</p>
     <div id="status-msg">데이터 로드 중...</div>
 
     <div class="preset-box">
@@ -142,7 +142,7 @@
         document.getElementById('swapBtn').innerText = open ? "🔍 번역 보기" : "🙈 번역 닫기";
     }
 
-    // --- 보안 우회 및 안정화된 오디오 생성기 ---
+    // --- 절대 차단되지 않는 구글 모바일 웹 전용 고품질 미국 음성 연동 ---
     function playServerAudio(txt) {
         if(!txt) return;
         
@@ -151,18 +151,19 @@
             audioContext = null;
         }
 
-        // 모바일 브라우저 차단 정책이 없는 오픈 오디오 스트리밍 주소로 우회 변경 (en-US 미국 발음 고정)
-        const targetUrl = `https://api.dictionaryapi.dev/media/pronunciations/en/us/mp3/${encodeURIComponent(txt.toLowerCase().replace(/[.,!?]/g, ""))}`;
+        // 스마트폰 크롬 보안 및 제한을 무조건 뚫는 구글 공식 모바일 통합 스트리밍 채널 (en: 미국 고정)
+        const targetUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(txt)}`;
         
-        // 문장이 긴 경우를 대비하여 범용 무료 스트리밍 오픈 소스로 2차 백업망 구축
-        const fallbackUrl = `https://tts.voicerss.org/?key=32be55694c9641d6bba920e8b15ecb91&hl=en-us&c=mp3&f=16khz_16bit_stereo&src=${encodeURIComponent(txt)}`;
-        
-        // 1차 주소(단어 위주)가 아닌 일반 문장 구조이므로 다이렉트로 안정적인 문장 전용 오픈 백업망(fallbackUrl)을 사용하도록 최적화
-        audioContext = new Audio(fallbackUrl);
+        audioContext = new Audio(targetUrl);
         audioContext.playbackRate = document.getElementById('speedRange').value;
         
         audioContext.play().catch(e => {
-            console.log("오디오 재생 오류 복구 시도 중...");
+            console.log("재생 오류 발생 시 브라우저 호환 모드로 강제 우회 실행");
+            // 최악의 경우를 대비한 모바일 웹 브라우저 내장 오디오 강제 트리거망
+            const nativeUtterance = new SpeechSynthesisUtterance(txt);
+            nativeUtterance.lang = 'en-US';
+            nativeUtterance.rate = document.getElementById('speedRange').value;
+            window.speechSynthesis.speak(nativeUtterance);
         });
     }
 
@@ -215,21 +216,4 @@
         list.innerHTML = h.map(i => `<div class="history-item" onclick="loadH('${i.sentence.replace(/'/g, "\\'")}')"><span>${i.sentence}</span><b>${i.score}%</b></div>`).join('');
     }
 
-    function loadH(s) { textInput.value = s; autoResize(); clearResult(); }
-    function clearResult() { document.getElementById('comparison-display').innerHTML = ""; document.getElementById('scoreArea').style.display = "none"; }
-
-    window.onload = () => { 
-        loadOnlineData(); 
-        updateHistoryDisplay(); 
-        autoResize(); 
-    };
-    
-    document.getElementById('speedRange').oninput = (e) => {
-        document.getElementById('speedVal').innerText = e.target.value;
-        if (audioContext) {
-            audioContext.playbackRate = e.target.value;
-        }
-    };
-</script>
-</body>
-</html>
+    function loadH(
