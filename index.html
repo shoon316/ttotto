@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>또또 English - 최종 최적화 버전</title>
+    <title>또또 English</title>
     <style>
         :root { --primary-color: #ff7675; --secondary-color: #fab1a0; --bg-color: #fff9f9; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg-color); margin: 0; padding: 20px; display: flex; justify-content: center; }
@@ -78,7 +78,7 @@
     </div>
     
     <div class="btn-box">
-        <button class="btn-listen" onclick="playSpeech(document.getElementById('textInput').value)">🎧 전체 듣기</button>
+        <button class="btn-listen" onclick="playSpeech(document.getElementById('textInput').value)">🎧 전체듣기</button>
         <button class="btn-speak" onclick="startRecognition()">🎤 발음하기</button>
     </div>
 
@@ -88,7 +88,7 @@
     </div>
 
     <div style="text-align: left; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-        <div style="font-weight: bold; font-size: 14px; margin-bottom: 10px;">🕒 최근 학습</div>
+        <div style="font-weight: bold; font-size: 14px; margin-bottom: 10px;">🕒 최근학습</div>
         <div id="historyList"></div>
     </div>
 </div>
@@ -141,7 +141,7 @@
         const div = document.getElementById('translation-display');
         const open = div.style.display === "block";
         div.style.display = open ? "none" : "block";
-        document.getElementById('swapBtn').innerText = open ? "🔍 번역 보기" : "🙈 번역 닫기";
+        document.getElementById('swapBtn').innerText = open ? "🔍 번역보기" : "🙈 번역닫기";
     }
 
     function playSpeech(txt) {
