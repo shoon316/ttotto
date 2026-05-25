@@ -71,7 +71,6 @@
     <div class="btn-translate" id="swapBtn" onclick="toggleTranslation()">🔍 번역 보기</div>
 
     <div class="controls">
-        <div class="control-item"> 목소리 <select id="voiceSelect"></select></div>
         <div class="control-item"> 속도: <span id="speedVal">1.0</span> <input type="range" id="speedRange" min="0.5" max="1.5" step="0.1" value="1.0"></div>
     </div>
     
@@ -149,8 +148,8 @@
             const m = new SpeechSynthesisUtterance(txt);
             m.lang = 'en-US';
             const voices = window.speechSynthesis.getVoices();
-            const selectedVoice = voices.find(v => v.name === document.getElementById('voiceSelect').value);
-            if(selectedVoice && isTrustedEnglishVoice(selectedVoice)) {
+            const selectedVoice = voices.filter(isTrustedEnglishVoice).sort(sortEnglishVoices)[0];
+            if(selectedVoice) {
                 m.voice = selectedVoice;
                 m.lang = selectedVoice.lang || 'en-US';
             }
@@ -233,32 +232,12 @@
 
     // 목소리 로드 및 한국어 차단 최적화 함수
     function initVoices() {
-        const vs = document.getElementById('voiceSelect');
         const allVoices = window.speechSynthesis.getVoices();
         
         // 영어(en)만 필터링 (한국어 ko 완벽 차단)
         const enVoices = allVoices.filter(isTrustedEnglishVoice).sort(sortEnglishVoices);
         
         if (enVoices.length === 0) return;
-
-        vs.innerHTML = "";
-
-        enVoices.forEach(v => {
-            const opt = document.createElement('option');
-            opt.value = v.name;
-            
-            // 제조사 이름 삭제 및 가독성 향상
-            let displayName = v.name.replace(/Microsoft |Google |Apple |Samsung /g, "");
-            
-            // 지역 코드 추출 (US, UK 등)
-            const region = v.lang.split('-')[1] ? ` (${v.lang.split('-')[1].toUpperCase()})` : "";
-            opt.innerText = displayName + region;
-            vs.appendChild(opt);
-        });
-
-        // 기본값: 미국 영어(US) 우선 설정
-        const defaultVoice = [...vs.options].find(o => o.text.includes('US')) || vs.options[0];
-        if (defaultVoice) vs.value = defaultVoice.value;
     }
 
     // 브라우저 호환성 대응 (Voice 로딩)
