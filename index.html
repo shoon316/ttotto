@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>또또 English - 최종 통합 안정화 버전</title>
+    <title>또또 English - 최종 최적화 버전</title>
     <style>
         :root { --primary-color: #ff7675; --secondary-color: #fab1a0; --bg-color: #fff9f9; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg-color); margin: 0; padding: 20px; display: flex; justify-content: center; }
@@ -31,8 +31,9 @@
             font-size: 12px; cursor: pointer; border: 1px solid #ddd; margin-bottom: 15px; display: none;
         }
         
-        .controls { display: flex; justify-content: center; background: #fff5f5; padding: 12px; border-radius: 12px; margin-bottom: 20px; font-size: 13px; }
-        .control-item { display: flex; flex-direction: column; gap: 5px; width: 100%; text-align: center; }
+        .controls { display: flex; justify-content: space-around; background: #fff5f5; padding: 12px; border-radius: 12px; margin-bottom: 20px; font-size: 13px; gap: 10px; }
+        .control-item { display: flex; flex-direction: column; gap: 5px; flex: 1; text-align: left; }
+        select { padding: 6px; border-radius: 8px; border: 1px solid #ddd; font-size: 12px; background: white; outline: none; }
 
         .btn-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
         button { padding: 15px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px; color: white; }
@@ -46,14 +47,14 @@
         .score-badge { font-size: 42px; color: var(--primary-color); font-weight: 800; margin-bottom: 10px; }
         
         .history-item { background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; display: flex; justify-content: space-between; cursor: pointer; }
-        #status-msg { font-size: 12px; color: #fab1a0; margin-bottom: 10px; font-weight: bold; }
+        #status-msg { font-size: 12px; color: #fab1a0; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>🍎 또또 English</h1>
-    <p class="subtitle">틀려도 괜찮아^^ 다시 하면 되니까</p>
+    <p class="subtitle">미국/영국 정통 발음 학습</p>
     <div id="status-msg">데이터 로드 중...</div>
 
     <div class="preset-box">
@@ -64,20 +65,18 @@
         <button class="btn-preset" onclick="setPreset('random')">🎲 랜덤</button>
     </div>
 
-    <textarea id="textInput" placeholder="여기에 영어 문장을 직접 입력하거나 버튼을 눌러주세요." oninput="autoResize()"></textarea>
+    <textarea id="textInput" placeholder="문장을 선택해 주세요" onfocus="preventStop(event)" oninput="autoResize()"></textarea>
     
     <div id="translation-display"></div>
     <div class="btn-translate" id="swapBtn" onclick="toggleTranslation()">🔍 번역 보기</div>
 
     <div class="controls">
-        <div class="control-item">
-            속도: <span id="speedVal">1.0</span> 
-            <input type="range" id="speedRange" min="0.5" max="1.5" step="0.1" value="1.0">
-        </div>
+        <div class="control-item"> 목소리 <select id="voiceSelect"></select></div>
+        <div class="control-item"> 속도: <span id="speedVal">1.0</span> <input type="range" id="speedRange" min="0.5" max="1.5" step="0.1" value="1.0"></div>
     </div>
     
     <div class="btn-box">
-        <button class="btn-listen" onclick="playServerAudio(document.getElementById('textInput').value)">🎧 전체 듣기</button>
+        <button class="btn-listen" onclick="playSpeech(document.getElementById('textInput').value)">🎧 전체 듣기</button>
         <button class="btn-speak" onclick="startRecognition()">🎤 발음하기</button>
     </div>
 
@@ -93,26 +92,190 @@
 </div>
 
 <script>
-    // 현재 지정되어 있는 구글 시트 주소
     const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTd4zYF3VWpo3UGriP6LJXXekWTZMHYa7ZLkKSDwe0gg87UXiJ5qZMQlCdCgPwTwhDCXLZ9m6mW7Qci/pub?gid=1367477544&single=true&output=csv"; 
-    
-    // 혹시라도 구글 시트 로딩이 막힐 때 앱이 켜지게 도와주는 비상용 자체 데이터 망
-    let presets = { 
-        daily: [{eng: "Hello, nice to meet you.", kor: "안녕하세요, 만나서 반가워요."}, {eng: "How is it going?", kor: "어떻게 지내세요?"}], 
-        travel: [{eng: "Where is the baggage claim?", kor: "수하물 찾는 곳이 어디인가요?"}], 
-        golf: [{eng: "Nice shot!", kor: "멋진 샷입니다!"}], 
-        church: [{eng: "God bless you.", kor: "신의 축복이 있기를 바랍니다."}] 
-    };
+    let presets = { daily: [], travel: [], golf: [], church: [] };
     let currentKor = ""; 
     const textInput = document.getElementById('textInput');
-    let audioContext = null; 
 
     function autoResize() {
         textInput.style.height = 'auto';
         textInput.style.height = textInput.scrollHeight + 'px';
     }
 
-    // --- 개선: 프록시 서버 백업망을 포함한 구글 시트 안전 다운로드 로직 ---
+    function preventStop(e) { if (window.speechSynthesis.speaking) { e.preventDefault(); textInput.blur(); } }
+
     async function loadOnlineData() {
         try {
-            // 1차 시
+            const res = await fetch(SHEET_URL);
+            const csv = await res.text();
+            csv.split(/\r?\n/).forEach(row => {
+                const col = row.split(',');
+                if (col.length >= 2 && presets[col[0].trim().toLowerCase()]) {
+                    presets[col[0].trim().toLowerCase()].push({ eng: col[1].trim(), kor: col[2]?.trim() || "" });
+                }
+            });
+            document.getElementById('status-msg').innerText = "✅ 데이터 연동 성공";
+        } catch (e) { document.getElementById('status-msg').innerText = "❌ 로드 실패"; }
+    }
+
+    function setPreset(cat) {
+        const keys = Object.keys(presets).filter(k => presets[k].length > 0);
+        const list = cat === 'random' ? presets[keys[Math.floor(Math.random()*keys.length)]] : presets[cat];
+        if (!list?.length) return;
+        
+        const item = list[Math.floor(Math.random()*list.length)];
+        textInput.value = item.eng;
+        currentKor = item.kor;
+        
+        autoResize();
+        document.getElementById('translation-display').style.display = "none";
+        document.getElementById('translation-display').innerText = currentKor;
+        document.getElementById('swapBtn').style.display = "inline-block";
+        document.getElementById('swapBtn').innerText = "🔍 번역 보기";
+        clearResult();
+    }
+
+    function toggleTranslation() {
+        const div = document.getElementById('translation-display');
+        const open = div.style.display === "block";
+        div.style.display = open ? "none" : "block";
+        document.getElementById('swapBtn').innerText = open ? "🔍 번역 보기" : "🙈 번역 닫기";
+    }
+
+    function playSpeech(txt) {
+        if(!txt) return;
+        window.speechSynthesis.cancel();
+        setTimeout(() => {
+            const m = new SpeechSynthesisUtterance(txt);
+            m.lang = 'en-US';
+            const voices = window.speechSynthesis.getVoices();
+            const selectedVoice = voices.find(v => v.name === document.getElementById('voiceSelect').value);
+            if(selectedVoice && isTrustedEnglishVoice(selectedVoice)) {
+                m.voice = selectedVoice;
+                m.lang = selectedVoice.lang || 'en-US';
+            }
+            m.rate = document.getElementById('speedRange').value;
+            window.speechSynthesis.speak(m);
+        }, 50);
+    }
+
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'en-US';
+
+    function startRecognition() { 
+        if(!textInput.value) return;
+        document.getElementById('comparison-display').innerText = "듣고 있습니다..."; 
+        recognition.start(); 
+    }
+
+    recognition.onresult = (e) => {
+        const reco = e.results[0][0].transcript.toLowerCase().replace(/[.,!?]/g,"");
+        const orig = textInput.value.trim().split(/\s+/);
+        const recoWords = reco.split(/\s+/);
+        const display = document.getElementById('comparison-display');
+        display.innerHTML = "";
+        let matches = 0;
+
+        orig.forEach(word => {
+            const clean = word.toLowerCase().replace(/[.,!?]/g,"");
+            const span = document.createElement('span');
+            span.innerText = word + " ";
+            if (recoWords.includes(clean)) { span.className = "correct"; matches++; }
+            else { 
+                span.className = "wrong"; 
+                span.onclick = (ev) => { ev.stopPropagation(); playSpeech(clean); };
+            }
+            display.appendChild(span);
+        });
+
+        const score = Math.round((matches / orig.length) * 100);
+        document.getElementById('scoreArea').style.display = "block";
+        document.getElementById('scoreValue').innerText = score + "%";
+        saveHistory(textInput.value, score);
+    };
+
+    function saveHistory(sentence, score) {
+        let h = JSON.parse(localStorage.getItem('todoH_new') || '[]');
+        h = h.filter(i => i.sentence !== sentence).slice(0, 6);
+        h.unshift({ sentence, score });
+        localStorage.setItem('todoH_new', JSON.stringify(h));
+        updateHistoryDisplay();
+    }
+
+    function updateHistoryDisplay() {
+        const list = document.getElementById('historyList');
+        const h = JSON.parse(localStorage.getItem('todoH_new') || '[]');
+        list.innerHTML = h.map(i => `<div class="history-item" onclick="loadH('${i.sentence.replace(/'/g, "\\'")}')"><span>${i.sentence}</span><b>${i.score}%</b></div>`).join('');
+    }
+
+    function loadH(s) { textInput.value = s; autoResize(); clearResult(); }
+    function clearResult() { document.getElementById('comparison-display').innerHTML = ""; document.getElementById('scoreArea').style.display = "none"; }
+
+    const TRUSTED_ENGLISH_REGIONS = ['US', 'GB', 'AU', 'CA', 'IE', 'NZ', 'ZA'];
+    const ENGLISH_VOICE_PRIORITY = ['Google US English', 'Microsoft Jenny', 'Microsoft Aria', 'Samantha', 'Karen', 'Daniel', 'Google UK English'];
+
+    function isTrustedEnglishVoice(voice) {
+        if (!voice || !voice.lang) return false;
+        const parts = voice.lang.split('-');
+        const language = parts[0]?.toLowerCase();
+        const region = parts[1]?.toUpperCase();
+        return language === 'en' && TRUSTED_ENGLISH_REGIONS.includes(region);
+    }
+
+    function sortEnglishVoices(a, b) {
+        const rank = (voice) => {
+            const nameRank = ENGLISH_VOICE_PRIORITY.findIndex(name => voice.name.includes(name));
+            const regionRank = voice.lang === 'en-US' ? 0 : voice.lang === 'en-GB' ? 1 : 2;
+            return (nameRank === -1 ? 100 : nameRank) + regionRank;
+        };
+        return rank(a) - rank(b) || a.name.localeCompare(b.name);
+    }
+
+    // 목소리 로드 및 한국어 차단 최적화 함수
+    function initVoices() {
+        const vs = document.getElementById('voiceSelect');
+        const allVoices = window.speechSynthesis.getVoices();
+        
+        // 영어(en)만 필터링 (한국어 ko 완벽 차단)
+        const enVoices = allVoices.filter(isTrustedEnglishVoice).sort(sortEnglishVoices);
+        
+        if (enVoices.length === 0) return;
+
+        vs.innerHTML = "";
+
+        enVoices.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v.name;
+            
+            // 제조사 이름 삭제 및 가독성 향상
+            let displayName = v.name.replace(/Microsoft |Google |Apple |Samsung /g, "");
+            
+            // 지역 코드 추출 (US, UK 등)
+            const region = v.lang.split('-')[1] ? ` (${v.lang.split('-')[1].toUpperCase()})` : "";
+            opt.innerText = displayName + region;
+            vs.appendChild(opt);
+        });
+
+        // 기본값: 미국 영어(US) 우선 설정
+        const defaultVoice = [...vs.options].find(o => o.text.includes('US')) || vs.options[0];
+        if (defaultVoice) vs.value = defaultVoice.value;
+    }
+
+    // 브라우저 호환성 대응 (Voice 로딩)
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = initVoices;
+    }
+
+    window.onload = () => { 
+        loadOnlineData(); 
+        initVoices(); 
+        updateHistoryDisplay(); 
+        autoResize(); 
+        // 모바일 및 특정 브라우저 지연 로드 대응
+        setTimeout(initVoices, 600);
+    };
+    
+    document.getElementById('speedRange').oninput = (e) => document.getElementById('speedVal').innerText = e.target.value;
+</script>
+</body>
+</html>
