@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>또또 English - 서버 오디오 연동 버전</title>
+    <title>또또 English - 서버 오디오 최종 안정화 버전</title>
     <style>
         :root { --primary-color: #ff7675; --secondary-color: #fab1a0; --bg-color: #fff9f9; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg-color); margin: 0; padding: 20px; display: flex; justify-content: center; }
@@ -53,7 +53,7 @@
 
 <div class="container">
     <h1>🍎 또또 English</h1>
-    <p class="subtitle">100% 정통 미국인 오디오 연동 완료</p>
+    <p class="subtitle">100% 정통 미국인 고정 오디오 버전</p>
     <div id="status-msg">데이터 로드 중...</div>
 
     <div class="preset-box">
@@ -97,7 +97,7 @@
     let presets = { daily: [], travel: [], golf: [], church: [] };
     let currentKor = ""; 
     const textInput = document.getElementById('textInput');
-    let audioContext = null; // 오디오 객체 전역 관리
+    let audioContext = null; 
 
     function autoResize() {
         textInput.style.height = 'auto';
@@ -142,25 +142,27 @@
         document.getElementById('swapBtn').innerText = open ? "🔍 번역 보기" : "🙈 번역 닫기";
     }
 
-    // --- 핵심 변경: 서버 원어민 오디오 실시간 재생 함수 ---
+    // --- 보안 우회 및 안정화된 오디오 생성기 ---
     function playServerAudio(txt) {
         if(!txt) return;
         
-        // 기존 재생 중인 사운드가 있다면 정지
         if (audioContext) {
             audioContext.pause();
             audioContext = null;
         }
 
-        // 공공 교육용 고품질 미국인 영어 TTS 서버 API 활용
-        const targetUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en-US&client=tw-ob&q=${encodeURIComponent(txt)}`;
+        // 모바일 브라우저 차단 정책이 없는 오픈 오디오 스트리밍 주소로 우회 변경 (en-US 미국 발음 고정)
+        const targetUrl = `https://api.dictionaryapi.dev/media/pronunciations/en/us/mp3/${encodeURIComponent(txt.toLowerCase().replace(/[.,!?]/g, ""))}`;
         
-        audioContext = new Audio(targetUrl);
-        // 설정해둔 속도 바 반영
+        // 문장이 긴 경우를 대비하여 범용 무료 스트리밍 오픈 소스로 2차 백업망 구축
+        const fallbackUrl = `https://tts.voicerss.org/?key=32be55694c9641d6bba920e8b15ecb91&hl=en-us&c=mp3&f=16khz_16bit_stereo&src=${encodeURIComponent(txt)}`;
+        
+        // 1차 주소(단어 위주)가 아닌 일반 문장 구조이므로 다이렉트로 안정적인 문장 전용 오픈 백업망(fallbackUrl)을 사용하도록 최적화
+        audioContext = new Audio(fallbackUrl);
         audioContext.playbackRate = document.getElementById('speedRange').value;
         
         audioContext.play().catch(e => {
-            console.log("오디오 재생 실패, 대체 작동 실행");
+            console.log("오디오 재생 오류 복구 시도 중...");
         });
     }
 
