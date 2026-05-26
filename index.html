@@ -101,7 +101,7 @@
 <div class="container">
     <h1>🍎 또또 English</h1>
     <p class="subtitle">틀려도 괜찮아^^ 다시 하면 되니까</p>
-    <div id="status-msg">데이터 로드 중...</div>
+    <div id="status-msg">데이터 로드 중... · v2-unlimited</div>
 
     <div class="preset-box">
         <button class="btn-preset" onclick="setPreset('daily')">🏠 일상</button>
@@ -158,6 +158,7 @@
     let presets = { daily: [], travel: [], golf: [], church: [] };
     let currentKor = ""; 
     let celebrationTimer = null;
+    const APP_VERSION = 'v2-unlimited';
     const HISTORY_KEY = 'englishCoachPracticeHistory';
     const LEGACY_HISTORY_KEY = 'todoH_new';
     const textInput = document.getElementById('textInput');
@@ -179,8 +180,8 @@
                     presets[col[0].trim().toLowerCase()].push({ eng: col[1].trim(), kor: col[2]?.trim() || "" });
                 }
             });
-            document.getElementById('status-msg').innerText = "✅ 데이터 연동 성공";
-        } catch (e) { document.getElementById('status-msg').innerText = "❌ 로드 실패"; }
+            document.getElementById('status-msg').innerText = `✅ 데이터 연동 성공 · ${APP_VERSION}`;
+        } catch (e) { document.getElementById('status-msg').innerText = `❌ 로드 실패 · ${APP_VERSION}`; }
     }
 
     function setPreset(cat) {
