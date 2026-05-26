@@ -113,7 +113,7 @@
     
     <div class="btn-box">
         <button class="btn-listen" onclick="playSpeech(document.getElementById('textInput').value)">🎧 전체 듣기</button>
-        <button class="btn-speak" onclick="startRecognition()">🎤 발음하기</button>
+        <button class="btn-speak" id="speakBtn" onclick="startRecognition()">🎤 발음하기</button>
     </div>
 
     <div id="result-box">
@@ -159,8 +159,8 @@
                     presets[col[0].trim().toLowerCase()].push({ eng: col[1].trim(), kor: col[2]?.trim() || "" });
                 }
             });
-            document.getElementById('status-msg').innerText = "✅ 데이터 연동 성공";
-        } catch (e) { document.getElementById('status-msg').innerText = "❌ 로드 실패"; }
+            setStatus("✅ 데이터 연동 성공");
+        } catch (e) { setStatus("❌ 로드 실패"); }
     }
 
     function setPreset(cat) {
@@ -204,17 +204,27 @@
         }, 50);
     }
 
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'en-US';
+    const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = SpeechRecognitionApi ? new SpeechRecognitionApi() : null;
+    if (recognition) recognition.lang = 'en-US';
 
     function startRecognition() { 
         if(!textInput.value) return;
+        if(!recognition) {
+            document.getElementById('comparison-display').innerText = "이 브라우저는 음성 인식을 지원하지 않습니다.";
+            return;
+        }
         hideCelebration();
         document.getElementById('comparison-display').innerText = "듣고 있습니다..."; 
         recognition.start(); 
     }
 
-    recognition.onresult = (e) => {
+    function setStatus(message) {
+        const suffix = recognition ? "" : " · 음성 인식 미지원";
+        document.getElementById('status-msg').innerText = message + suffix;
+    }
+
+    if (recognition) recognition.onresult = (e) => {
         const reco = e.results[0][0].transcript.toLowerCase().replace(/[.,!?]/g,"");
         const orig = textInput.value.trim().split(/\s+/);
         const recoWords = reco.split(/\s+/);
@@ -256,7 +266,7 @@
 
     function saveHistory(sentence, score) {
         let h = JSON.parse(localStorage.getItem('todoH_new') || '[]');
-        h = h.filter(i => i.sentence !== sentence).slice(0, 6);
+        h = h.filter(i => i.sentence !== sentence).slice(0, 99);
         h.unshift({ sentence, score });
         localStorage.setItem('todoH_new', JSON.stringify(h));
         updateHistoryDisplay();
@@ -265,7 +275,23 @@
     function updateHistoryDisplay() {
         const list = document.getElementById('historyList');
         const h = JSON.parse(localStorage.getItem('todoH_new') || '[]');
-        list.innerHTML = h.map(i => `<div class="history-item" onclick="loadH('${i.sentence.replace(/'/g, "\\'")}')"><span>${i.sentence}</span><b>${i.score}%</b></div>`).join('');
+        list.innerHTML = "";
+
+        h.forEach(i => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.onclick = () => loadH(i.sentence || "");
+
+            const sentence = document.createElement('span');
+            sentence.innerText = i.sentence || "";
+
+            const score = document.createElement('b');
+            score.innerText = `${i.score ?? 0}%`;
+
+            item.appendChild(sentence);
+            item.appendChild(score);
+            list.appendChild(item);
+        });
     }
 
     function loadH(s) { textInput.value = s; autoResize(); clearResult(); }
@@ -309,11 +335,22 @@
     window.onload = () => { 
         loadOnlineData(); 
         initVoices(); 
+        initRecognitionSupport();
         updateHistoryDisplay(); 
         autoResize(); 
         // 모바일 및 특정 브라우저 지연 로드 대응
         setTimeout(initVoices, 600);
     };
+
+    function initRecognitionSupport() {
+        if (recognition) return;
+        const speakBtn = document.getElementById('speakBtn');
+        speakBtn.disabled = true;
+        speakBtn.style.opacity = "0.55";
+        speakBtn.style.cursor = "not-allowed";
+        speakBtn.title = "이 브라우저는 음성 인식을 지원하지 않습니다.";
+        setStatus("이 브라우저는 음성 인식을 지원하지 않습니다.");
+    }
     
     document.getElementById('speedRange').oninput = (e) => document.getElementById('speedVal').innerText = e.target.value;
 </script>
