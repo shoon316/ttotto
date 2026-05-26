@@ -83,7 +83,16 @@
             .celebration.show, .celebration-card, .sparkle { animation: none; }
         }
         
-        .history-item { background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; display: flex; justify-content: space-between; cursor: pointer; }
+        .history-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+        .history-note { color: #888; font-size: 11px; line-height: 1.4; margin-bottom: 10px; }
+        .history-count { color: var(--primary-color); font-size: 12px; font-weight: 700; white-space: nowrap; }
+        .history-item { background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; display: flex; justify-content: space-between; cursor: pointer; gap: 10px; }
+        .history-main { min-width: 0; text-align: left; }
+        .history-main span { overflow-wrap: anywhere; }
+        .history-meta { color: #999; font-size: 11px; margin-top: 4px; }
+        .history-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+        .history-actions button { flex: 1; padding: 10px; border-radius: 10px; font-size: 12px; background: #f1f2f6; color: #555; }
+        .history-actions input { display: none; }
         #status-msg { font-size: 12px; color: #fab1a0; margin-bottom: 10px; }
     </style>
 </head>
@@ -122,7 +131,16 @@
     </div>
 
     <div style="text-align: left; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-        <div style="font-weight: bold; font-size: 14px; margin-bottom: 10px;">🕒 최근 학습</div>
+        <div class="history-head">
+            <div style="font-weight: bold; font-size: 14px;">🕒 최근 학습</div>
+            <div class="history-count" id="historyCount">0개 저장됨</div>
+        </div>
+        <div class="history-note">기록은 이 기기에 계속 누적 저장됩니다. 스마트폰을 바꿀 때는 백업 파일을 저장한 뒤 새 기기에서 복구하세요.</div>
+        <div class="history-actions">
+            <button type="button" onclick="exportHistory()">백업</button>
+            <button type="button" onclick="document.getElementById('historyImport').click()">복구</button>
+            <input type="file" id="historyImport" accept="application/json,.json" onchange="importHistory(event)">
+        </div>
         <div id="historyList"></div>
     </div>
 </div>
@@ -140,6 +158,8 @@
     let presets = { daily: [], travel: [], golf: [], church: [] };
     let currentKor = ""; 
     let celebrationTimer = null;
+    const HISTORY_KEY = 'englishCoachPracticeHistory';
+    const LEGACY_HISTORY_KEY = 'todoH_new';
     const textInput = document.getElementById('textInput');
 
     function autoResize() {
@@ -254,18 +274,153 @@
         clearTimeout(celebrationTimer);
     }
 
+    function readHistoryFromKey(key) {
+        try {
+            const history = JSON.parse(localStorage.getItem(key) || '[]');
+            return Array.isArray(history) ? history : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getHistory() {
+        return readHistoryFromKey(HISTORY_KEY);
+    }
+
+    function setHistory(history) {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    }
+
+    function normalizeHistoryEntry(entry) {
+        if (!entry || typeof entry.sentence !== 'string') return null;
+        const createdAt = entry.createdAt && !Number.isNaN(new Date(entry.createdAt).getTime())
+            ? entry.createdAt
+            : new Date().toISOString();
+        return {
+            sentence: entry.sentence,
+            score: Number(entry.score) || 0,
+            createdAt
+        };
+    }
+
+    function mergeHistory(...groups) {
+        const seen = new Set();
+        return groups
+            .flat()
+            .map(normalizeHistoryEntry)
+            .filter(Boolean)
+            .filter(item => {
+                const key = `${item.createdAt}|${item.sentence}|${item.score}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            })
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    function migrateHistoryStorage() {
+        const current = readHistoryFromKey(HISTORY_KEY);
+        const legacy = readHistoryFromKey(LEGACY_HISTORY_KEY);
+        if (current.length || legacy.length) setHistory(mergeHistory(current, legacy));
+    }
+
     function saveHistory(sentence, score) {
-        let h = JSON.parse(localStorage.getItem('todoH_new') || '[]');
-        h = h.filter(i => i.sentence !== sentence).slice(0, 6);
-        h.unshift({ sentence, score });
-        localStorage.setItem('todoH_new', JSON.stringify(h));
+        const cleanSentence = sentence.trim();
+        if (!cleanSentence) return;
+        const h = getHistory();
+        h.unshift({ sentence: cleanSentence, score, createdAt: new Date().toISOString() });
+        setHistory(h);
         updateHistoryDisplay();
+    }
+
+    function formatHistoryDate(value) {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "";
+        return date.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
 
     function updateHistoryDisplay() {
         const list = document.getElementById('historyList');
-        const h = JSON.parse(localStorage.getItem('todoH_new') || '[]');
-        list.innerHTML = h.map(i => `<div class="history-item" onclick="loadH('${i.sentence.replace(/'/g, "\\'")}')"><span>${i.sentence}</span><b>${i.score}%</b></div>`).join('');
+        const count = document.getElementById('historyCount');
+        const h = getHistory();
+        list.innerHTML = "";
+        if (count) count.innerText = `${h.length}개 저장됨`;
+
+        if (!h.length) {
+            list.innerHTML = '<div class="history-meta">아직 저장된 연습 기록이 없습니다.</div>';
+            return;
+        }
+
+        h.forEach(i => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.onclick = () => loadH(i.sentence || "");
+
+            const main = document.createElement('div');
+            main.className = 'history-main';
+
+            const sentence = document.createElement('span');
+            sentence.innerText = i.sentence || "";
+            main.appendChild(sentence);
+
+            const meta = document.createElement('div');
+            meta.className = 'history-meta';
+            meta.innerText = formatHistoryDate(i.createdAt);
+            main.appendChild(meta);
+
+            const score = document.createElement('b');
+            score.innerText = `${i.score ?? 0}%`;
+
+            item.appendChild(main);
+            item.appendChild(score);
+            list.appendChild(item);
+        });
+    }
+
+    function exportHistory() {
+        const history = getHistory();
+        if (!history.length) {
+            alert('백업할 연습 기록이 아직 없습니다.');
+            return;
+        }
+        const data = {
+            app: 'English_coach_web',
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            history
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `english-practice-history-${new Date().toISOString().slice(0, 10)}.json`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function importHistory(event) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const parsed = JSON.parse(reader.result);
+                const imported = Array.isArray(parsed) ? parsed : parsed.history;
+                if (!Array.isArray(imported)) throw new Error('Invalid history file');
+
+                const merged = mergeHistory(imported, getHistory());
+                setHistory(merged);
+                updateHistoryDisplay();
+                alert(`연습 기록 ${merged.length}개를 복구했습니다.`);
+            } catch (e) {
+                alert('복구할 수 없는 백업 파일입니다.');
+            } finally {
+                event.target.value = "";
+            }
+        };
+        reader.readAsText(file);
     }
 
     function loadH(s) { textInput.value = s; autoResize(); clearResult(); }
@@ -307,6 +462,7 @@
     }
 
     window.onload = () => { 
+        migrateHistoryStorage();
         loadOnlineData(); 
         initVoices(); 
         updateHistoryDisplay(); 
