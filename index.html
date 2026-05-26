@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>또또 English</title>
+    <style>
+        :root { --primary-color: #ff7675; --secondary-color: #fab1a0; --bg-color: #fff9f9; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg-color); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; width: 100%; max-width: 500px; padding: 30px; border-radius: 24px; box-shadow: 0 15px 35px rgba(255,118,117,0.1); text-align: center; }
+        h1 { color: var(--primary-color); margin: 0 0 5px; font-size: 32px; }
+        .subtitle { color: #888; margin-bottom: 20px; font-size: 14px; }
+        
+        .preset-box { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 15px; }
+        .btn-preset { background: #fff; border: 2px solid var(--secondary-color); color: var(--primary-color); padding: 8px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-preset:hover { background: var(--secondary-color); color: white; }
+
+        textarea { 
+            width: 100%; min-height: 100px; height: auto; padding: 15px; border: 2px solid #ffeaa7; 
+            border-radius: 12px; font-size: 18px; box-sizing: border-box; margin-bottom: 10px; 
+            resize: none; font-family: inherit; line-height: 1.6; overflow: hidden; outline: none;
+        }
+
+        #translation-display {
+            background: #f0f7ff; color: #4a90e2; padding: 12px; border-radius: 12px;
+            font-size: 16px; margin-bottom: 15px; display: none; border-left: 5px solid #4a90e2; text-align: left;
+        }
+
+        .btn-translate {
+            background: #f1f2f6; color: #555; padding: 6px 16px; border-radius: 15px;
+            font-size: 12px; cursor: pointer; border: 1px solid #ddd; margin-bottom: 15px; display: none;
+        }
+        
+        .controls { display: flex; justify-content: space-around; background: #fff5f5; padding: 12px; border-radius: 12px; margin-bottom: 20px; font-size: 13px; gap: 10px; }
+        .control-item { display: flex; flex-direction: column; gap: 5px; flex: 1; text-align: left; }
+        .speed-control { flex-direction: row; align-items: center; gap: 8px; }
+        .speed-control label { white-space: nowrap; font-weight: bold; }
+        .speed-control input { flex: 1; min-width: 0; }
+        select { padding: 6px; border-radius: 8px; border: 1px solid #ddd; font-size: 12px; background: white; outline: none; }
+
+        .btn-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        button { padding: 15px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 15px; color: white; }
+        .btn-listen { background: var(--secondary-color); }
+        .btn-speak { background: var(--primary-color); }
+
+        #comparison-display { margin: 20px 0; font-size: 20px; line-height: 1.6; min-height: 35px; text-align: left; background: #fafafa; padding: 15px; border-radius: 10px; }
+        .correct { color: #2ecc71; }
+        .wrong { color: #e74c3c; text-decoration: underline; cursor: pointer; font-weight: bold; }
+
+        .score-badge { font-size: 42px; color: var(--primary-color); font-weight: 800; margin-bottom: 10px; }
+        .celebration {
+            position: fixed; inset: 0; display: none; place-items: center; z-index: 20;
+            background: rgba(255, 249, 249, 0.72); backdrop-filter: blur(2px);
+        }
+        .celebration.show { display: grid; animation: fadeIn 0.2s ease-out; }
+        .celebration-card {
+            position: relative; width: min(82vw, 330px); padding: 28px 18px; border-radius: 18px;
+            background: white; box-shadow: 0 18px 50px rgba(255,118,117,0.28);
+            color: var(--primary-color); font-size: 30px; font-weight: 900; text-align: center;
+            transform-origin: center; animation: popCelebrate 0.7s cubic-bezier(.2,1.45,.35,1);
+        }
+        .celebration-card span { display: block; margin-top: 8px; color: #555; font-size: 15px; font-weight: 700; }
+        .sparkle {
+            position: absolute; width: 12px; height: 12px; border-radius: 50%;
+            background: var(--secondary-color); animation: sparkleFly 0.95s ease-out forwards;
+        }
+        .sparkle:nth-child(1) { left: 16%; top: 18%; background: #ffeaa7; animation-delay: .05s; }
+        .sparkle:nth-child(2) { right: 14%; top: 20%; background: #74b9ff; animation-delay: .1s; }
+        .sparkle:nth-child(3) { left: 20%; bottom: 18%; background: #55efc4; animation-delay: .14s; }
+        .sparkle:nth-child(4) { right: 19%; bottom: 16%; background: #fd79a8; animation-delay: .18s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popCelebrate {
+            0% { transform: scale(.72); opacity: 0; }
+            60% { transform: scale(1.08); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes sparkleFly {
+            0% { transform: scale(.5); opacity: 0; }
+            30% { opacity: 1; }
+            100% { transform: translateY(-34px) scale(1.4); opacity: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .celebration.show, .celebration-card, .sparkle { animation: none; }
+        }
+        
+        .history-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+        .history-note { color: #888; font-size: 11px; line-height: 1.4; margin-bottom: 10px; }
+        .history-count { color: var(--primary-color); font-size: 12px; font-weight: 700; white-space: nowrap; }
+        .history-item { background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; display: flex; justify-content: space-between; cursor: pointer; gap: 10px; }
+        .history-main { min-width: 0; text-align: left; }
+        .history-main span { overflow-wrap: anywhere; }
+        .history-meta { color: #999; font-size: 11px; margin-top: 4px; }
+        .history-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+        .history-actions button { flex: 1; padding: 10px; border-radius: 10px; font-size: 12px; background: #f1f2f6; color: #555; }
+        .history-actions input { display: none; }
+        #status-msg { font-size: 12px; color: #fab1a0; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🍎 또또 English</h1>
+    <p class="subtitle">틀려도 괜찮아^^ 다시 하면 되니까</p>
+    <div id="status-msg">데이터 로드 중...</div>
+
+    <div class="preset-box">
+        <button class="btn-preset" onclick="setPreset('daily')">🏠 일상</button>
+        <button class="btn-preset" onclick="setPreset('travel')">✈️ 여행</button>
+        <button class="btn-preset" onclick="setPreset('golf')">⛳ 골프</button>
+        <button class="btn-preset" onclick="setPreset('church')">⛪ 교회</button>
+        <button class="btn-preset" onclick="setPreset('random')">🎲 랜덤</button>
+    </div>
+
+    <textarea id="textInput" placeholder="문장을 선택해 주세요" onfocus="preventStop(event)" oninput="autoResize()"></textarea>
+    
+    <div id="translation-display"></div>
+    <div class="btn-translate" id="swapBtn" onclick="toggleTranslation()">🔍 번역 보기</div>
+
+    <div class="controls">
+        <div class="control-item speed-control"><label>속도[<span id="speedVal">1.0</span>]</label><input type="range" id="speedRange" min="0.5" max="1.5" step="0.1" value="1.0"></div>
+    </div>
+    
+    <div class="btn-box">
+        <button class="btn-listen" onclick="playSpeech(document.getElementById('textInput').value)">🎧 전체 듣기</button>
+        <button class="btn-speak" onclick="startRecognition()">🎤 발음하기</button>
+    </div>
+
+    <div id="result-box">
+        <div id="comparison-display"></div>
+        <div id="scoreArea" style="display:none;"><div class="score-badge" id="scoreValue">0%</div></div>
+    </div>
+
+    <div style="text-align: left; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+        <div class="history-head">
+            <div style="font-weight: bold; font-size: 14px;">🕒 최근 학습</div>
+            <div class="history-count" id="historyCount">0개 저장됨</div>
+        </div>
+        <div class="history-note">기록은 이 기기에 계속 누적 저장됩니다. 스마트폰을 바꿀 때는 백업 파일을 저장한 뒤 새 기기에서 복구하세요. <span id="appVersion">v2-unlimited</span></div>
+        <div class="history-actions">
+            <button type="button" onclick="exportHistory()">백업</button>
+            <button type="button" onclick="document.getElementById('historyImport').click()">복구</button>
+            <input type="file" id="historyImport" accept="application/json,.json" onchange="importHistory(event)">
+        </div>
+        <div id="historyList"></div>
+    </div>
+</div>
+
+<div class="celebration" id="celebration">
+    <div class="celebration-card">
+        <div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div>
+        완벽해요!
+        <span>100점 축하해요</span>
+    </div>
+</div>
+
+<script>
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTd4zYF3VWpo3UGriP6LJXXekWTZMHYa7ZLkKSDwe0gg87UXiJ5qZMQlCdCgPwTwhDCXLZ9m6mW7Qci/pub?gid=1367477544&single=true&output=csv"; 
+    let presets = { daily: [], travel: [], golf: [], church: [] };
+    let currentKor = ""; 
+    let celebrationTimer = null;
+    const HISTORY_KEY = 'englishCoachPracticeHistory';
+    const LEGACY_HISTORY_KEY = 'todoH_new';
+    const textInput = document.getElementById('textInput');
+
+    function autoResize() {
+        textInput.style.height = 'auto';
+        textInput.style.height = textInput.scrollHeight + 'px';
+    }
+
+    function preventStop(e) { if (window.speechSynthesis.speaking) { e.preventDefault(); textInput.blur(); } }
+
+    async function loadOnlineData() {
+        try {
+            const res = await fetch(SHEET_URL);
+            const csv = await res.text();
+            csv.split(/\r?\n/).forEach(row => {
+                const col = row.split(',');
+                if (col.length >= 2 && presets[col[0].trim().toLowerCase()]) {
+                    presets[col[0].trim().toLowerCase()].push({ eng: col[1].trim(), kor: col[2]?.trim() || "" });
+                }
+            });
+            document.getElementById('status-msg').innerText = "✅ 데이터 연동 성공";
+        } catch (e) { document.getElementById('status-msg').innerText = "❌ 로드 실패"; }
+    }
+
+    function setPreset(cat) {
+        const keys = Object.keys(presets).filter(k => presets[k].length > 0);
+        const list = cat === 'random' ? presets[keys[Math.floor(Math.random()*keys.length)]] : presets[cat];
+        if (!list?.length) return;
+        
+        const item = list[Math.floor(Math.random()*list.length)];
+        textInput.value = item.eng;
+        currentKor = item.kor;
+        
+        autoResize();
+        document.getElementById('translation-display').style.display = "none";
+        document.getElementById('translation-display').innerText = currentKor;
+        document.getElementById('swapBtn').style.display = "inline-block";
+        document.getElementById('swapBtn').innerText = "🔍 번역 보기";
+        clearResult();
+    }
+
+    function toggleTranslation() {
+        const div = document.getElementById('translation-display');
+        const open = div.style.display === "block";
+        div.style.display = open ? "none" : "block";
+        document.getElementById('swapBtn').innerText = open ? "🔍 번역 보기" : "🙈 번역 닫기";
+    }
+
+    function playSpeech(txt) {
+        if(!txt) return;
+        window.speechSynthesis.cancel();
+        setTimeout(() => {
+            const m = new SpeechSynthesisUtterance(txt);
+            m.lang = 'en-US';
+            const voices = window.speechSynthesis.getVoices();
+            const selectedVoice = voices.filter(isTrustedEnglishVoice).sort(sortEnglishVoices)[0];
+            if(selectedVoice) {
+                m.voice = selectedVoice;
+                m.lang = selectedVoice.lang || 'en-US';
+            }
+            m.rate = document.getElementById('speedRange').value;
+            window.speechSynthesis.speak(m);
+        }, 50);
+    }
+
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'en-US';
+
+    function startRecognition() { 
+        if(!textInput.value) return;
+        hideCelebration();
+        document.getElementById('comparison-display').innerText = "듣고 있습니다..."; 
+        recognition.start(); 
+    }
+
+    recognition.onresult = (e) => {
+        const reco = e.results[0][0].transcript.toLowerCase().replace(/[.,!?]/g,"");
+        const orig = textInput.value.trim().split(/\s+/);
+        const recoWords = reco.split(/\s+/);
+        const display = document.getElementById('comparison-display');
+        display.innerHTML = "";
+        let matches = 0;
+
+        orig.forEach(word => {
+            const clean = word.toLowerCase().replace(/[.,!?]/g,"");
+            const span = document.createElement('span');
+            span.innerText = word + " ";
+            if (recoWords.includes(clean)) { span.className = "correct"; matches++; }
+            else { 
+                span.className = "wrong"; 
+                span.onclick = (ev) => { ev.stopPropagation(); playSpeech(clean); };
+            }
+            display.appendChild(span);
+        });
+
+        const score = Math.round((matches / orig.length) * 100);
+        document.getElementById('scoreArea').style.display = "block";
+        document.getElementById('scoreValue').innerText = score + "%";
+        if (score === 100) showCelebration();
+        saveHistory(textInput.value, score);
+    };
+
+    function showCelebration() {
+        const celebration = document.getElementById('celebration');
+        celebration.classList.add('show');
+        clearTimeout(celebrationTimer);
+        celebrationTimer = setTimeout(hideCelebration, 2200);
+    }
+
+    function hideCelebration() {
+        const celebration = document.getElementById('celebration');
+        celebration.classList.remove('show');
+        clearTimeout(celebrationTimer);
+    }
+
+    function readHistoryFromKey(key) {
+        try {
+            const history = JSON.parse(localStorage.getItem(key) || '[]');
+            return Array.isArray(history) ? history : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getHistory() {
+        return readHistoryFromKey(HISTORY_KEY);
+    }
+
+    function setHistory(history) {
+        const serialized = JSON.stringify(history);
+        localStorage.setItem(HISTORY_KEY, serialized);
+        localStorage.setItem(LEGACY_HISTORY_KEY, serialized);
+    }
+
+    function normalizeHistoryEntry(entry) {
+        if (!entry || typeof entry.sentence !== 'string') return null;
+        const createdAt = entry.createdAt && !Number.isNaN(new Date(entry.createdAt).getTime())
+            ? entry.createdAt
+            : new Date().toISOString();
+        return {
+            sentence: entry.sentence,
+            score: Number(entry.score) || 0,
+            createdAt
+        };
+    }
+
+    function mergeHistory(...groups) {
+        const seen = new Set();
+        return groups
+            .flat()
+            .map(normalizeHistoryEntry)
+            .filter(Boolean)
+            .filter(item => {
+                const key = `${item.createdAt}|${item.sentence}|${item.score}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            })
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    function migrateHistoryStorage() {
+        const current = readHistoryFromKey(HISTORY_KEY);
+        const legacy = readHistoryFromKey(LEGACY_HISTORY_KEY);
+        if (current.length || legacy.length) setHistory(mergeHistory(current, legacy));
+    }
+
+    function saveHistory(sentence, score) {
+        const cleanSentence = sentence.trim();
+        if (!cleanSentence) return;
+        const h = mergeHistory(getHistory(), readHistoryFromKey(LEGACY_HISTORY_KEY));
+        h.unshift({ sentence: cleanSentence, score, createdAt: new Date().toISOString() });
+        setHistory(h);
+        updateHistoryDisplay();
+    }
+
+    function formatHistoryDate(value) {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "";
+        return date.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function updateHistoryDisplay() {
+        const list = document.getElementById('historyList');
+        const count = document.getElementById('historyCount');
+        const h = getHistory();
+        list.innerHTML = "";
+        if (count) count.innerText = `${h.length}개 저장됨`;
+
+        if (!h.length) {
+            list.innerHTML = '<div class="history-meta">아직 저장된 연습 기록이 없습니다.</div>';
+            return;
+        }
+
+        h.forEach(i => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.onclick = () => loadH(i.sentence || "");
+
+            const main = document.createElement('div');
+            main.className = 'history-main';
+
+            const sentence = document.createElement('span');
+            sentence.innerText = i.sentence || "";
+            main.appendChild(sentence);
+
+            const meta = document.createElement('div');
+            meta.className = 'history-meta';
+            meta.innerText = formatHistoryDate(i.createdAt);
+            main.appendChild(meta);
+
+            const score = document.createElement('b');
+            score.innerText = `${i.score ?? 0}%`;
+
+            item.appendChild(main);
+            item.appendChild(score);
+            list.appendChild(item);
+        });
+    }
+
+    function exportHistory() {
+        const history = getHistory();
+        if (!history.length) {
+            alert('백업할 연습 기록이 아직 없습니다.');
+            return;
+        }
+        const data = {
+            app: 'English_coach_web',
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            history
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `english-practice-history-${new Date().toISOString().slice(0, 10)}.json`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function importHistory(event) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const parsed = JSON.parse(reader.result);
+                const imported = Array.isArray(parsed) ? parsed : parsed.history;
+                if (!Array.isArray(imported)) throw new Error('Invalid history file');
+
+                const merged = mergeHistory(imported, getHistory());
+                setHistory(merged);
+                updateHistoryDisplay();
+                alert(`연습 기록 ${merged.length}개를 복구했습니다.`);
+            } catch (e) {
+                alert('복구할 수 없는 백업 파일입니다.');
+            } finally {
+                event.target.value = "";
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function loadH(s) { textInput.value = s; autoResize(); clearResult(); }
+    function clearResult() { document.getElementById('comparison-display').innerHTML = ""; document.getElementById('scoreArea').style.display = "none"; hideCelebration(); }
+
+    const TRUSTED_ENGLISH_REGIONS = ['US', 'GB', 'AU', 'CA', 'IE', 'NZ', 'ZA'];
+    const ENGLISH_VOICE_PRIORITY = ['Google US English', 'Microsoft Jenny', 'Microsoft Aria', 'Samantha', 'Karen', 'Daniel', 'Google UK English'];
+
+    function isTrustedEnglishVoice(voice) {
+        if (!voice || !voice.lang) return false;
+        const parts = voice.lang.split('-');
+        const language = parts[0]?.toLowerCase();
+        const region = parts[1]?.toUpperCase();
+        return language === 'en' && TRUSTED_ENGLISH_REGIONS.includes(region);
+    }
+
+    function sortEnglishVoices(a, b) {
+        const rank = (voice) => {
+            const nameRank = ENGLISH_VOICE_PRIORITY.findIndex(name => voice.name.includes(name));
+            const regionRank = voice.lang === 'en-US' ? 0 : voice.lang === 'en-GB' ? 1 : 2;
+            return (nameRank === -1 ? 100 : nameRank) + regionRank;
+        };
+        return rank(a) - rank(b) || a.name.localeCompare(b.name);
+    }
+
+    // 목소리 로드 및 한국어 차단 최적화 함수
+    function initVoices() {
+        const allVoices = window.speechSynthesis.getVoices();
+        
+        // 영어(en)만 필터링 (한국어 ko 완벽 차단)
+        const enVoices = allVoices.filter(isTrustedEnglishVoice).sort(sortEnglishVoices);
+        
+        if (enVoices.length === 0) return;
+    }
+
+    // 브라우저 호환성 대응 (Voice 로딩)
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = initVoices;
+    }
+
+    window.onload = () => { 
+        migrateHistoryStorage();
+        loadOnlineData(); 
+        initVoices(); 
+        updateHistoryDisplay(); 
+        autoResize(); 
+        // 모바일 및 특정 브라우저 지연 로드 대응
+        setTimeout(initVoices, 600);
+    };
+    
+    document.getElementById('speedRange').oninput = (e) => document.getElementById('speedVal').innerText = e.target.value;
+</script>
+</body>
+</html>
