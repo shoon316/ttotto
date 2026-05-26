@@ -135,7 +135,7 @@
             <div style="font-weight: bold; font-size: 14px;">🕒 최근 학습</div>
             <div class="history-count" id="historyCount">0개 저장됨</div>
         </div>
-        <div class="history-note">기록은 이 기기에 계속 누적 저장됩니다. 스마트폰을 바꿀 때는 백업 파일을 저장한 뒤 새 기기에서 복구하세요.</div>
+        <div class="history-note">기록은 이 기기에 계속 누적 저장됩니다. 스마트폰을 바꿀 때는 백업 파일을 저장한 뒤 새 기기에서 복구하세요. <span id="appVersion">v2-unlimited</span></div>
         <div class="history-actions">
             <button type="button" onclick="exportHistory()">백업</button>
             <button type="button" onclick="document.getElementById('historyImport').click()">복구</button>
@@ -288,7 +288,9 @@
     }
 
     function setHistory(history) {
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        const serialized = JSON.stringify(history);
+        localStorage.setItem(HISTORY_KEY, serialized);
+        localStorage.setItem(LEGACY_HISTORY_KEY, serialized);
     }
 
     function normalizeHistoryEntry(entry) {
@@ -327,7 +329,7 @@
     function saveHistory(sentence, score) {
         const cleanSentence = sentence.trim();
         if (!cleanSentence) return;
-        const h = getHistory();
+        const h = mergeHistory(getHistory(), readHistoryFromKey(LEGACY_HISTORY_KEY));
         h.unshift({ sentence: cleanSentence, score, createdAt: new Date().toISOString() });
         setHistory(h);
         updateHistoryDisplay();
